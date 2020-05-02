@@ -1,14 +1,17 @@
 use crate::bit;
+use wasm_bindgen::prelude::*;
 
-#[derive(Debug)]
+#[wasm_bindgen]
 pub struct Rng {
     state: u32,
 }
 
+#[wasm_bindgen]
 impl Rng {
-    pub fn new(init_state: impl Into<Option<u32>>) -> Self {
+    #[wasm_bindgen(constructor)]
+    pub fn new(init_state: Option<u32>) -> Self {
         Rng {
-            state: init_state.into().unwrap_or(0xaae21259),
+            state: init_state.unwrap_or(0xaae21259),
         }
     }
 
@@ -16,8 +19,8 @@ impl Rng {
         self.state
     }
 
-    pub fn rand(&mut self, upper: impl Into<Option<u8>>) -> u8 {
-        let upper = upper.into().unwrap_or(u8::max_value());
+    pub fn rand(&mut self, upper: Option<u8>) -> u8 {
+        let upper = upper.unwrap_or(u8::max_value());
 
         let upper16 = bit::range(self.state, 16, 32) as u16;
         let lower16 = bit::range(self.state, 0, 16) as u16;
@@ -44,7 +47,7 @@ mod tests {
         assert_eq!(rng.state(), 0xe21259c7);
 
         let upper: u8 = 16;
-        assert_eq!(rng.rand(upper), (0x0a * (upper as u16) / 256) as u8);
+        assert_eq!(rng.rand(Some(upper)), (0x0a * (upper as u16) / 256) as u8);
         assert_eq!(rng.state(), 0x1259c70a);
     }
 }

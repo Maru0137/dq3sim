@@ -10,7 +10,11 @@ description = "The library for simulation SFC Dragon Quest III"
 readme = "README.md"
 keywards = ["dq3"]
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 num = "0.2.1"
 gnuplot = "0.0.35"
 plotlib = "0.5.1"
+wasm-bindgen = "0.2.45"
