@@ -1,2 +1,3 @@
 /target
 Cargo.lock
+jupyter/.ipynb_checkpoints/
