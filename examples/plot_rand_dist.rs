@@ -6,7 +6,7 @@ fn rand_sequence(sample: usize) -> Vec<u8> {
     let mut sequence = Vec::new();
 
     for _ in 0..sample {
-        sequence.push(rng.rand(None));
+        sequence.push(rng.rand());
     }
 
     return sequence;
