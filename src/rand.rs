@@ -1,20 +1,28 @@
 use crate::bit;
+use std::borrow::Borrow;
 use std::fmt;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct State(u32);
 
+/// A newtype for 32-bit state value in a Random Number Generator
 #[wasm_bindgen]
 impl State {
-    pub fn next(state: &State) -> State {
-        let upper16 = bit::range(state.0, 16, 32) as u16;
-        let lower16 = bit::range(state.0, 0, 16) as u16;
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        State(0xaae21259)
+    }
+
+    /// Return the next state of RNG.
+    pub fn next(&self) -> State {
+        let upper16 = bit::range(self.0, 16, 32) as u16;
+        let lower16 = bit::range(self.0, 0, 16) as u16;
         let tmp = ((lower16 << 2) ^ upper16) << 1;
         let lowest8 = (tmp >> 8) as u8;
 
-        return State((state.0 << 8) | (lowest8 as u32));
+        return State((self.0 << 8) | (lowest8 as u32));
     }
 
     pub fn transit(&mut self) {
@@ -35,16 +43,8 @@ impl State {
         return ret as u8;
     }
 
-    pub fn rand_by_mask(&self, offset: u8, mask: u8) -> u8 {
-        assert!(bit::is_powerof2(mask as u16 + 1));
-
-        let iter = 16;
-        let mut sum = offset as u16;
-        for _ in 0..iter {
-            sum += (self.rand() & mask) as u16;
-        }
-
-        return (sum & 0xff) as u8;
+    pub fn rand_by_mask(&self, mask: u8) -> u8 {
+        return self.rand() & mask;
     }
 }
 
@@ -54,12 +54,31 @@ impl fmt::Display for State {
     }
 }
 
+impl From<u32> for State {
+    fn from(value: u32) -> Self {
+        Self(value)
+    }
+}
+
+impl AsRef<u32> for State {
+    fn as_ref(&self) -> &u32 {
+        &self.0
+    }
+}
+
+impl Borrow<u32> for State {
+    fn borrow(&self) -> &u32 {
+        &self.0
+    }
+}
+
 #[wasm_bindgen]
 #[derive(Debug, Clone)]
 pub struct Generator {
     state: State,
 }
 
+/// A Random Number Generator.
 #[wasm_bindgen]
 impl Generator {
     #[wasm_bindgen(constructor)]
@@ -73,24 +92,57 @@ impl Generator {
         self.state
     }
 
+    /// Transit the state of RNG.
     pub fn transit(&mut self) {
         self.state.transit();
     }
 
+    /// Return a 8-bit(i.e. [0, 255]) uniform random number.
+    ///
+    /// This method simulates the subroutine at 0x0012e3.
     pub fn rand(&mut self) -> u8 {
-        self.state.transit();
+        self.transit();
         return self.state.rand();
     }
 
+    /// Return a 8-bit random number inbound [0, upper].
+    ///
+    /// ret = rand() * 256 / (upper + 1)
+    /// This method simulates the subroutine at 0x00133e.
     pub fn rand_by_multiply(&mut self, upper: u8) -> u8 {
-        self.state.transit();
+        self.transit();
         return self.state.rand_by_multiply(upper);
     }
 
-    pub fn rand_by_mask(&mut self, offset: u8, mask: u8) -> u8 {
-        self.state.transit();
-        return self.state.rand_by_mask(offset, mask);
+    /// Return a 8-bit multinomial random number.
+    ///
+    /// ret = (offset + multi(n=16, p= rand() & mask)) % 256
+    ///
+    /// This method simulates the subroutine at 0x0014d4.
+    pub fn rand_multinomial(&mut self, offset: u8, mask: u8) -> u8 {
+        assert!(bit::is_powerof2(mask as u16 + 1));
+
+        let mut sum = offset as u16;
+        let iter = 16;
+        for _ in 0..iter {
+            self.transit();
+            sum += self.state.rand_by_mask(mask) as u16;
+        }
+
+        return (sum & 0xff) as u8;
     }
+}
+
+#[wasm_bindgen]
+pub fn histograms() -> Box<[u32]> {
+    const BIN_NUM: usize = 256;
+    let mut hists: Box<[u32]> = Box::new([0; BIN_NUM]);
+
+    for i in 0..hists.len() {
+        hists[i] = if i == 0 { 0x7fffff_u32 } else { 0x800000_u32 };
+    }
+
+    return hists;
 }
 
 #[cfg(test)]
@@ -142,7 +194,7 @@ mod tests {
 
         assert_eq!(rng.state(), State(0xaae21259));
         // TODO: Check the result.
-        rng.rand_by_mask(offset, mask);
+        rng.rand_multinomial(offset, mask);
     }
 
     #[test]
@@ -151,6 +203,31 @@ mod tests {
         let mut rng = Generator::new(None);
         let mask: u8 = 30;
 
-        rng.rand_by_mask(0, mask);
+        rng.rand_multinomial(0, mask);
+    }
+
+    #[test]
+    fn state_index_test() {
+        let mut hist = vec![0; u32::max_value() as usize];
+
+        let state0 = State::new();
+        println!("{}", *state0.as_ref());
+        hist[*state0.as_ref() as usize] += 1;
+
+        let state1 = state0.next();
+        hist[*state1.as_ref() as usize] += 1;
+
+        assert_eq!(hist[*state0.as_ref() as usize], 1);
+        assert_eq!(hist[*state1.as_ref() as usize], 1);
+    }
+
+    #[test]
+    fn rand_histogram_test() {
+        let hists = histograms();
+
+        for i in 0..hists.len() {
+            let expect = if i == 0 { 0x7fffff_u32 } else { 0x800000_u32 };
+            assert_eq!(hists[i], expect);
+        }
     }
 }
