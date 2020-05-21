@@ -1,8 +1,8 @@
-use dq3::rand::Generator;
+use dq3::rand::Rng;
 use gnuplot;
 
 fn rand_sequence(sample: usize) -> Vec<u8> {
-    let mut rng = Generator::new(None);
+    let mut rng = Rng::default();
     let mut sequence = Vec::new();
 
     for _ in 0..sample {

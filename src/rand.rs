@@ -11,8 +11,12 @@ pub struct State(u32);
 #[wasm_bindgen]
 impl State {
     #[wasm_bindgen(constructor)]
-    pub fn new() -> Self {
-        State(0xaae21259)
+    pub fn new(v: u32) -> Self {
+        Self(v)
+    }
+
+    pub fn init() -> Self {
+        Self::default()
     }
 
     /// Return the next state of RNG.
@@ -48,6 +52,12 @@ impl State {
     }
 }
 
+impl Default for State {
+    fn default() -> Self {
+        Self(0xaae21259)
+    }
+}
+
 impl fmt::Display for State {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "0x{:x}", self.0)
@@ -73,19 +83,21 @@ impl Borrow<u32> for State {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone)]
-pub struct Generator {
+#[derive(Debug, Clone, Default)]
+pub struct Rng {
     state: State,
 }
 
 /// A Random Number Generator.
 #[wasm_bindgen]
-impl Generator {
+impl Rng {
     #[wasm_bindgen(constructor)]
-    pub fn new(init: Option<State>) -> Self {
-        Generator {
-            state: init.unwrap_or(State(0xaae21259)),
-        }
+    pub fn new(state: State) -> Self {
+        Self { state }
+    }
+
+    pub fn init() -> Self {
+        Self::default()
     }
 
     pub fn state(&self) -> State {
@@ -133,25 +145,13 @@ impl Generator {
     }
 }
 
-#[wasm_bindgen]
-pub fn histograms() -> Box<[u32]> {
-    const BIN_NUM: usize = 256;
-    let mut hists: Box<[u32]> = Box::new([0; BIN_NUM]);
-
-    for i in 0..hists.len() {
-        hists[i] = if i == 0 { 0x7fffff_u32 } else { 0x800000_u32 };
-    }
-
-    return hists;
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn rand_test() {
-        let mut rng = Generator::new(None);
+        let mut rng = Rng::default();
 
         assert_eq!(rng.state(), State(0xaae21259));
         assert_eq!(rng.rand(), 0xc7);
@@ -160,14 +160,14 @@ mod tests {
 
     #[test]
     fn rand_print_test() {
-        let rng = Generator::new(None);
+        let rng = Rng::default();
 
         assert_eq!(format!("{}", rng.state()), "0xaae21259");
     }
 
     #[test]
     fn rng_clone_test() {
-        let rng = Generator::new(None);
+        let rng = Rng::default();
         let mut rng_tmp = rng.clone();
 
         assert_eq!(rng_tmp.state(), State(0xaae21259));
@@ -178,7 +178,7 @@ mod tests {
 
     #[test]
     fn rand_by_multiply_test() {
-        let mut rng = Generator::new(None);
+        let mut rng = Rng::default();
         let upper: u8 = 16;
 
         assert_eq!(rng.state(), State(0xaae21259));
@@ -188,7 +188,7 @@ mod tests {
 
     #[test]
     fn rand_by_mask_test() {
-        let mut rng = Generator::new(None);
+        let mut rng = Rng::default();
         let mask: u8 = 31;
         let offset: u8 = 136;
 
@@ -200,7 +200,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn rand_by_mask_panic_test() {
-        let mut rng = Generator::new(None);
+        let mut rng = Rng::default();
         let mask: u8 = 30;
 
         rng.rand_multinomial(0, mask);
@@ -210,7 +210,7 @@ mod tests {
     fn state_index_test() {
         let mut hist = vec![0; u32::max_value() as usize];
 
-        let state0 = State::new();
+        let state0 = State::default();
         println!("{}", *state0.as_ref());
         hist[*state0.as_ref() as usize] += 1;
 
@@ -219,15 +219,5 @@ mod tests {
 
         assert_eq!(hist[*state0.as_ref() as usize], 1);
         assert_eq!(hist[*state1.as_ref() as usize], 1);
-    }
-
-    #[test]
-    fn rand_histogram_test() {
-        let hists = histograms();
-
-        for i in 0..hists.len() {
-            let expect = if i == 0 { 0x7fffff_u32 } else { 0x800000_u32 };
-            assert_eq!(hists[i], expect);
-        }
     }
 }
