@@ -150,7 +150,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn rand_test() {
+    fn test_rand() {
         let mut rng = Rng::default();
 
         assert_eq!(rng.state(), State(0xaae21259));
@@ -159,14 +159,14 @@ mod tests {
     }
 
     #[test]
-    fn rand_print_test() {
+    fn test_state_format() {
         let rng = Rng::default();
 
         assert_eq!(format!("{}", rng.state()), "0xaae21259");
     }
 
     #[test]
-    fn rng_clone_test() {
+    fn test_rng_clone() {
         let rng = Rng::default();
         let mut rng_tmp = rng.clone();
 
@@ -177,7 +177,7 @@ mod tests {
     }
 
     #[test]
-    fn rand_by_multiply_test() {
+    fn test_rand_by_multiply() {
         let mut rng = Rng::default();
         let upper: u8 = 16;
 
@@ -187,7 +187,7 @@ mod tests {
     }
 
     #[test]
-    fn rand_by_mask_test() {
+    fn test_rand_by_mask() {
         let mut rng = Rng::default();
         let mask: u8 = 31;
         let offset: u8 = 136;
@@ -199,7 +199,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn rand_by_mask_panic_test() {
+    fn test_rand_by_mask_panic() {
         let mut rng = Rng::default();
         let mask: u8 = 30;
 
@@ -207,7 +207,7 @@ mod tests {
     }
 
     #[test]
-    fn state_index_test() {
+    fn test_state_hash() {
         let mut hist = vec![0; u32::max_value() as usize];
 
         let state0 = State::default();

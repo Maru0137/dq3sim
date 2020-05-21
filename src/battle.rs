@@ -83,7 +83,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn damage_twinhits_test() {
+    fn test_damage_twinhits() {
         let atk = 250;
         let def = 0;
 
