@@ -19,6 +19,7 @@ jobs:
   wasm-build:
     runs-on: macos-latest
     steps:
+    - uses: actions/checkout@v2
     - uses: jetli/wasm-pack-action@v0.3.0
     - name: Build
       run: wasm-pack build
