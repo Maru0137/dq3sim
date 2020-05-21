@@ -159,11 +159,12 @@ mod tests {
     }
 
     #[test]
-    // fn test_state_format() {
-    //     let rng = Rng::default();
+    fn test_state_format() {
+        let rng = Rng::default();
 
-    //     assert_eq!(format!("{}", rng.state()), "0xaae21259");
-    // }
+        assert_eq!(format!("{}", rng.state()), "0xaae21259");
+    }
+
     #[test]
     fn test_rng_clone() {
         let rng = Rng::default();
