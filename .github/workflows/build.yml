@@ -9,16 +9,10 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
 
     steps:
     - uses: actions/checkout@v2
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: 1.42.0
-        default: true
-    - name: Check version
-      run: cargo --version
     - name: Build
       run: cargo build --verbose
     - name: Run tests
