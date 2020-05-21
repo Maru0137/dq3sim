@@ -7,15 +7,20 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
+  build-and-test-native:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
+    - name: Build and run tests
       run: cargo test --lib --verbose
   
+  build-and-test-wasm:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build and run tests
+      run: cargo test --lib --target wasm32-unknown-unknown --verbose
+    
   wasm-build:
     runs-on: macos-latest
     steps:
