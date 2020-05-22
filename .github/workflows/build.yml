@@ -21,6 +21,8 @@ jobs:
       - uses: jetli/wasm-pack-action@v0.3.0
       - name: Build
         run: wasm-pack build --scope maru0137
+      - name: Upload package
+        uses: actions/upload-artifact@v1
         with:
           name: pkg
           path: pkg
