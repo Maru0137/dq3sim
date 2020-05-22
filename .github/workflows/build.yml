@@ -10,21 +10,34 @@ jobs:
   build-and-test-native:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: Build and run tests
-      run: cargo test --lib --verbose
+      - uses: actions/checkout@v2
+      - name: Build and run tests
+        run: cargo test --lib --verbose
   
-  build-and-test-wasm:
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Build and run tests
-      run: cargo test --lib --target wasm32-unknown-unknown --verbose
-    
   wasm-build:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
-    - uses: jetli/wasm-pack-action@v0.3.0
-    - name: Build
-      run: wasm-pack build
+      - uses: actions/checkout@v2
+      - uses: jetli/wasm-pack-action@v0.3.0
+      - name: Build
+        run: wasm-pack build --scope maru0137
+        with:
+          name: pkg
+          path: pkg
+
+  publish-github-package:
+    runs-on: macos-latest
+    steps:
+      - name: Download the package
+        uses: actions/download-artifact@v1
+        with:
+          name: pkg
+      - name: Setup Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: '12.x'
+          registry-url: "https://npm.pkg.github.com/"
+      - name: Publish packageles
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
