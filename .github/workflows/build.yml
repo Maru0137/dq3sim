@@ -15,6 +15,7 @@ jobs:
         run: cargo test --lib --verbose
   
   wasm-build:
+    needs: build-and-test-native
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
@@ -28,6 +29,7 @@ jobs:
           path: pkg
 
   publish-github-package:
+    needs: wasm-build
     runs-on: macos-latest
     steps:
       - name: Download the package
