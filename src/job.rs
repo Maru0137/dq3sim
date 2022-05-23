@@ -62,8 +62,9 @@ impl loader::FromRecord for Job {
             let mut growths: [Growth; 5] = Default::default();
             for (growth_i, growth) in growths.iter_mut().enumerate() {
                 growth.upper_lv = record[112 + 12 * status_i + 2 * growth_i].parse().unwrap();
-                growth.value =
-                    U4F4::from_bits(record[113 + 12 * status_i + 2 * growth_i].parse().unwrap());
+                growth.value = GrowthValueT::from_bits(
+                    record[113 + 12 * status_i + 2 * growth_i].parse().unwrap(),
+                );
             }
             status_growths[status] = growths;
         }

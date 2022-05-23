@@ -1,8 +1,8 @@
 use enum_iterator::IntoEnumIterator;
 use enum_map::Enum;
-use fixed::{types::extra::U8, FixedU16};
+use fixed::types::U8F8;
 
-type StatusValue = FixedU16<U8>;
+type StatusValueT = U8F8;
 
 #[derive(Clone, Copy, Debug, IntoEnumIterator, Enum)]
 pub enum Status {
