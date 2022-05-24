@@ -1,12 +1,34 @@
+use crate::attr::Attr;
 use crate::loader;
 use crate::sex::Sex;
-use crate::status::Status;
 
 use enum_iterator::IntoEnumIterator;
-use enum_map::EnumMap;
+use enum_map::{Enum, EnumMap};
 use fixed::types::U4F4;
 
 type GrowthValueT = U4F4;
+
+#[derive(Clone, Copy, Debug, Display, IntoEnumIterator, Enum, EnumString, PartialEq, Eq)]
+pub enum Job {
+    #[strum(serialize = "せんし", serialize = "せ")]
+    Soldier,
+    #[strum(serialize = "そうりょ", serialize = "そ")]
+    Pligrim,
+    #[strum(serialize = "まほうつかい", serialize = "ま")]
+    Wizard,
+    #[strum(serialize = "ぶとうか", serialize = "ぶ")]
+    Fighter,
+    #[strum(serialize = "しょうにん", serialize = "し")]
+    Merchant,
+    #[strum(serialize = "あそびにん", serialize = "あ")]
+    GoofOff,
+    #[strum(serialize = "とうぞく", serialize = "と")]
+    Thief,
+    #[strum(serialize = "ゆうしゃ", serialize = "ゆ")]
+    Hero,
+    #[strum(serialize = "けんじゃ", serialize = "け")]
+    Sage,
+}
 
 #[derive(Debug, Default)]
 pub struct Growth {
@@ -15,16 +37,16 @@ pub struct Growth {
 }
 
 #[derive(Debug)]
-pub struct Job {
+pub struct JobTable {
     name: String,
     exps: [u32; 98],
-    status_inits: EnumMap<Status, EnumMap<Sex, u8>>,
-    status_growths: EnumMap<Status, [Growth; 5]>,
+    attr_inits: EnumMap<Attr, EnumMap<Sex, u8>>,
+    attr_growths: EnumMap<Attr, [Growth; 5]>,
 }
 
-impl Job {
-    pub fn growth_value(&self, lv: u8, status: Status) -> GrowthValueT {
-        let growths = &self.status_growths[status];
+impl JobTable {
+    pub fn growth_value(&self, lv: u8, attr: Attr) -> GrowthValueT {
+        let growths = &self.attr_growths[attr];
 
         // Search growth step id.
         let mut id = 0;
@@ -39,7 +61,7 @@ impl Job {
     }
 }
 
-impl loader::FromRecord for Job {
+impl loader::FromRecord for JobTable {
     fn from_record(record: &csv::StringRecord) -> Self {
         let name = record[0].parse().unwrap();
         let mut exps: [u32; 98] = [0; 98];
@@ -47,16 +69,16 @@ impl loader::FromRecord for Job {
             *exp = record[12 + i].parse().unwrap();
         }
 
-        let mut status_inits = EnumMap::<Status, EnumMap<Sex, u8>>::default();
-        let mut status_growths = EnumMap::<Status, [Growth; 5]>::default();
+        let mut attr_inits = EnumMap::<Attr, EnumMap<Sex, u8>>::default();
+        let mut attr_growths = EnumMap::<Attr, [Growth; 5]>::default();
 
-        for (status_i, status) in Status::into_enum_iter().enumerate() {
+        for (status_i, status) in Attr::into_enum_iter().enumerate() {
             // Parse initial status.
             let mut inits = EnumMap::<Sex, u8>::default();
             for (sex_i, sex) in Sex::into_enum_iter().enumerate() {
                 inits[sex] = record[110 + 12 * status_i + sex_i].parse().unwrap();
             }
-            status_inits[status] = inits;
+            attr_inits[status] = inits;
 
             // Parse growth of status.
             let mut growths: [Growth; 5] = Default::default();
@@ -66,23 +88,27 @@ impl loader::FromRecord for Job {
                     record[113 + 12 * status_i + 2 * growth_i].parse().unwrap(),
                 );
             }
-            status_growths[status] = growths;
+            attr_growths[status] = growths;
         }
 
         Self {
             name,
             exps,
-            status_inits,
-            status_growths,
+            attr_inits,
+            attr_growths,
         }
     }
 }
 
 lazy_static! {
-    pub static ref JOB_TABLE: Vec<Job> = {
+    static ref JOB_TABLE: Vec<JobTable> = {
         let data = include_str!("../assets/0xc4179e_jobs.csv");
         loader::from_csv(data)
     };
+}
+
+pub fn get_job_table(job: Job) -> &'static JobTable {
+    &JOB_TABLE[job as usize]
 }
 
 #[cfg(test)]
@@ -91,6 +117,6 @@ mod tests {
 
     #[test]
     fn test_growth_value() {
-        assert_eq!(JOB_TABLE[0].growth_value(9, Status::Vit), 5.5);
+        assert_eq!(get_job_table(Job::Soldier).growth_value(9, Attr::Vit), 5.5);
     }
 }

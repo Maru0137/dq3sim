@@ -1,6 +1,10 @@
 use crate::bit;
+
 use std::borrow::Borrow;
+use std::cell::UnsafeCell;
 use std::fmt;
+use std::rc::Rc;
+use std::thread::{self, Thread};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -91,17 +95,16 @@ pub struct Rng {
 /// A Random Number Generator.
 #[wasm_bindgen]
 impl Rng {
-    #[wasm_bindgen(constructor)]
-    pub fn new(state: State) -> Self {
-        Self { state }
-    }
-
-    pub fn init() -> Self {
-        Self::default()
-    }
-
     pub fn state(&self) -> State {
         self.state
+    }
+
+    pub fn init(&mut self) {
+        self.state = State::default();
+    }
+
+    pub fn set_state(&mut self, state: State) {
+        self.state = state;
     }
 
     /// Transit the state of RNG.
@@ -143,6 +146,77 @@ impl Rng {
 
         return (sum & 0xff) as u8;
     }
+}
+
+impl From<State> for Rng {
+    fn from(state: State) -> Self {
+        Self { state }
+    }
+}
+
+impl From<u32> for Rng {
+    fn from(state_value: u32) -> Self {
+        Rng::from(State::from(state_value))
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ThreadRng {
+    rng: Rc<UnsafeCell<Rng>>,
+}
+
+impl ThreadRng {
+    pub fn state(&self) -> State {
+        unsafe { (*self.rng.get()).state() }
+    }
+
+    pub fn set_state(&mut self, state: State) {
+        let rng = unsafe { &mut *self.rng.get() };
+        rng.set_state(state);
+    }
+
+    /// Transit the state of RNG.
+    pub fn transit(&mut self) {
+        let rng = unsafe { &mut *self.rng.get() };
+        rng.state.transit();
+    }
+
+    /// Return a 8-bit(i.e. [0, 255]) uniform random number.
+    ///
+    /// This method simulates the subroutine at 0x0012e3.
+    pub fn rand(&mut self) -> u8 {
+        let rng = unsafe { &mut *self.rng.get() };
+        rng.rand()
+    }
+
+    /// Return a 8-bit random number inbound [0, upper].
+    ///
+    /// ret = rand() * 256 / (upper + 1)
+    ///
+    /// This method simulates the subroutine at 0x00133e.
+    pub fn rand_by_multiply(&mut self, upper: u8) -> u8 {
+        let rng = unsafe { &mut *self.rng.get() };
+        rng.rand_by_multiply(upper)
+    }
+
+    /// Return a 8-bit multinomial random number.
+    ///
+    /// ret = (offset + multi(n=16, p= rand() & mask)) % 256
+    ///
+    /// This method simulates the subroutine at 0x0014d4.
+    pub fn rand_multinomial(&mut self, offset: u8, mask: u8) -> u8 {
+        let rng = unsafe { &mut *self.rng.get() };
+        rng.rand_multinomial(offset, mask)
+    }
+}
+
+thread_local! {
+    static THREAD_RNG_KEY: Rc<UnsafeCell<Rng>> = Rc::new(UnsafeCell::new(Rng::default()));
+}
+
+pub fn thread_rng() -> ThreadRng {
+    let rng = THREAD_RNG_KEY.with(|t| t.clone());
+    ThreadRng { rng }
 }
 
 #[cfg(test)]
