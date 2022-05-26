@@ -1,4 +1,4 @@
-use crate::attr::Attr;
+use crate::attr::{Attr, AttrValue};
 use crate::job::{get_job_table, Job};
 use crate::personality::{get_personality_table, Personality};
 use crate::rand;
@@ -7,9 +7,7 @@ use crate::sex::Sex;
 use enum_iterator::IntoEnumIterator;
 use enum_map::{enum_map, Enum, EnumMap};
 use fixed::traits::ToFixed;
-use fixed::types::U8F8;
 
-pub type AttrValue = U8F8;
 pub type Attrs = EnumMap<Attr, AttrValue>;
 
 #[derive(Debug, Clone)]
@@ -53,20 +51,24 @@ impl Player {
         self.job
     }
 
-    fn growth_status_basic(&self, lv: u8, attr: Attr) -> AttrValue {
-        let growth_base: AttrValue = get_job_table(self.job).growth_value(lv, attr).into();
+    fn growth_attr(&self, lv: u8, attr: Attr) -> AttrValue {
+        let growth_base = get_job_table(self.job).growth_value(lv, attr);
+
+        let mut rng = rand::thread_rng();
+
+        let range = get_job_table(self.job()).range_attr_value(self.lv, attr);
+        let upper = range.max().unwrap();
+        if self.attr(attr) > upper {
+            return (rng.rand() % 2).into();
+        }
+
+        let randomized =
+            ((growth_base.to_bits() as u16) * (rng.rand_multinomial(136, 31) as u16) >> 3) & 0x0ff0;
+
         let factor: AttrValue = get_personality_table(self.personality)
             .growth_factor(attr)
             .into();
-
-        growth_base * factor
-    }
-
-    fn growth_status(&self, lv: u8, attr: Attr) -> AttrValue {
-        // TODO: rand
-        let mut rng = rand::thread_rng();
-        self.growth_status_basic(lv, attr)
-            * AttrValue::from_bits((rng.rand_multinomial(136, 31) as u16) << 1)
+        AttrValue::from_bits(randomized) * factor
     }
 
     pub fn levelup(&mut self) {
@@ -74,7 +76,17 @@ impl Player {
 
         for attr in Attr::into_enum_iter() {
             let before = self.attrs[attr];
-            self.attrs[attr] = before + self.growth_status(self.lv, attr);
+            let range = get_job_table(self.job()).range_attr_value(self.lv, attr);
+
+            let mut after = before + self.growth_attr(self.lv, attr);
+
+            let lower = range.min().unwrap().to_fixed();
+
+            if after < lower {
+                after = lower
+            }
+
+            self.attrs[attr] = after;
         }
 
         // TODO: growth for HP/MP correctly

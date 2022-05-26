@@ -1,13 +1,15 @@
-use crate::attr::Attr;
+use crate::attr::{Attr, AttrValue};
 use crate::loader;
 use crate::sex::Sex;
 
 use enum_iterator::IntoEnumIterator;
 use enum_map::{Enum, EnumMap};
 use fixed::types::U4F4;
+use std::ops::RangeInclusive;
 
-type GrowthValueT = U4F4;
+pub type GrowthValueT = U4F4;
 
+/// Job kind enum
 #[derive(Clone, Copy, Debug, Display, IntoEnumIterator, Enum, EnumString, PartialEq, Eq)]
 pub enum Job {
     #[strum(serialize = "せんし", serialize = "せ")]
@@ -58,6 +60,37 @@ impl JobTable {
         }
 
         growths[id].value
+    }
+
+    pub fn standard_attr_value(&self, lv: u8, attr: Attr) -> u8 {
+        let init = self.attr_inits[attr][Sex::Man];
+
+        if lv == 1 {
+            return init;
+        }
+
+        let sum = (2..=lv)
+            .fold(AttrValue::from(init), |acc, lv| {
+                acc.saturating_add(AttrValue::from(self.growth_value(lv, attr)))
+            })
+            .to_num();
+
+        sum
+    }
+
+    pub fn range_attr_value(&self, lv: u8, attr: Attr) -> RangeInclusive<u8> {
+        let standard = self.standard_attr_value(lv, attr);
+        let upper = standard.saturating_add(15).saturating_add(lv * 2);
+
+        let lower_factor = match attr {
+            Attr::Pow | Attr::Spd => 70,
+            Attr::Vit => 60,
+            Attr::Int | Attr::Lck => 50,
+        };
+
+        let lower = ((standard as u16) * lower_factor / 100) as u8 + 1;
+
+        lower..=upper
     }
 }
 
