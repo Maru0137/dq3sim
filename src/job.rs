@@ -33,7 +33,7 @@ pub enum Job {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct Growth {
+pub struct GrowthEntry {
     upper_lv: u8,
     value: GrowthValueT,
 }
@@ -43,7 +43,7 @@ pub struct JobTable {
     name: String,
     exps: [u32; 98],
     attr_inits: EnumMap<Attr, EnumMap<Sex, u8>>,
-    attr_growths: EnumMap<Attr, Vec<Growth>>,
+    attr_growths: EnumMap<Attr, Vec<GrowthEntry>>,
 }
 
 impl JobTable {
@@ -129,7 +129,7 @@ impl loader::FromRecord for JobTable {
         }
 
         let mut attr_inits = EnumMap::<Attr, EnumMap<Sex, u8>>::default();
-        let mut attr_growths = EnumMap::<Attr, Vec<Growth>>::default();
+        let mut attr_growths = EnumMap::<Attr, Vec<GrowthEntry>>::default();
 
         let attr_growth_nums = [5, 5, 6, 5, 5];
 
@@ -145,7 +145,7 @@ impl loader::FromRecord for JobTable {
             attr_inits[attr] = inits;
 
             // Parse growth of status.
-            let mut growths = vec![Growth::default(); attr_growth_nums[attr_i]];
+            let mut growths = vec![GrowthEntry::default(); attr_growth_nums[attr_i]];
             for (growth_i, growth) in growths.iter_mut().enumerate() {
                 growth.upper_lv = record[112 + offset + 2 * growth_i].parse().unwrap();
                 growth.value =
