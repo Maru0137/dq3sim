@@ -8,6 +8,7 @@ extern crate strum_macros;
 pub mod attr;
 pub mod battle;
 pub mod bit;
+pub mod growth;
 pub mod job;
 mod loader;
 pub mod personality;

@@ -1,0 +1,30 @@
+{
+    "init": {
+        "job": "Wizard",
+        "sex": "Women",
+        "personality": "Ironman",
+        "vit": 15
+    },
+    "configs": [
+        {
+            "lv": 10
+        },
+        {
+            "lv": 19,
+            "personality": "Solitary"
+        },
+        {
+            "lv": 21,
+            "personality": "Ironman"
+        },
+        {
+            "lv": 7,
+            "job": "Soldier",
+            "personality": "Solitary"
+        },
+        {
+            "lv": 23,
+            "personality": "Ironman"
+        }
+    ]
+}

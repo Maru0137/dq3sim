@@ -1,0 +1,13 @@
+{
+    "init": {
+        "job": "Hero",
+        "sex": "Women",
+        "personality": "Tough",
+        "vit": 17
+    },
+    "configs": [
+        {
+            "lv": 45
+        }
+    ]
+}

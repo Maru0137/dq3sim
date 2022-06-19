@@ -4,11 +4,24 @@ use crate::loader;
 use enum_iterator::IntoEnumIterator;
 use enum_map::{enum_map, Enum, EnumMap};
 use fixed::types::U1F7;
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-type GrowthFactorT = U1F7;
+pub type GrowthFactor = U1F7;
 
-#[derive(Clone, Copy, Debug, Display, Enum, EnumString, IntoEnumIterator, PartialEq, Eq)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Display,
+    Enum,
+    EnumString,
+    IntoEnumIterator,
+    PartialEq,
+    Eq,
+    Deserialize,
+    Serialize,
+)]
 pub enum Personality {
     #[strum(serialize = "ちからじまん")]
     Jock,
@@ -106,11 +119,11 @@ pub enum Personality {
 
 pub struct PersonalityTable {
     name: String,
-    growth_factors: EnumMap<Attr, GrowthFactorT>,
+    growth_factors: EnumMap<Attr, GrowthFactor>,
 }
 
 impl PersonalityTable {
-    pub fn growth_factor(&self, attr: Attr) -> GrowthFactorT {
+    pub fn growth_factor(&self, attr: Attr) -> GrowthFactor {
         self.growth_factors[attr]
     }
 }
@@ -119,9 +132,9 @@ impl loader::FromRecord for PersonalityTable {
     fn from_record(record: &csv::StringRecord) -> Self {
         let name = record[0].parse().unwrap();
 
-        let mut growth_factors = EnumMap::<Attr, GrowthFactorT>::default();
+        let mut growth_factors = EnumMap::<Attr, GrowthFactor>::default();
         for (i, status) in Attr::into_enum_iter().enumerate() {
-            growth_factors[status] = GrowthFactorT::from_bits(record[1 + i].parse().unwrap());
+            growth_factors[status] = GrowthFactor::from_bits(record[1 + i].parse().unwrap());
         }
 
         Self {

@@ -1,14 +1,12 @@
-use crate::attr::{Attr, AttrValue};
-use crate::job::{get_job_table, Job};
-use crate::personality::{get_personality_table, Personality};
+use crate::attr::{attrs_new, Attr, AttrValue, Attrs};
+use crate::job::{get_job_entry, Job};
+use crate::personality::{self, get_personality_table, GrowthFactor, Personality};
 use crate::rand;
 use crate::sex::Sex;
 
 use enum_iterator::IntoEnumIterator;
 use enum_map::{enum_map, Enum, EnumMap};
 use fixed::traits::ToFixed;
-
-pub type Attrs = EnumMap<Attr, AttrValue>;
 
 #[derive(Debug, Clone)]
 pub struct Player {
@@ -52,18 +50,19 @@ impl Player {
     }
 
     fn growth_attr(&self, lv: u8, attr: Attr) -> AttrValue {
-        let growth_base = get_job_table(self.job).growth_value(lv, attr);
+        let increment_base = get_job_entry(self.job).attr_increment(lv, attr);
 
         let mut rng = rand::thread_rng();
 
-        let range = get_job_table(self.job()).range_attr_value(self.lv, attr);
+        let range = get_job_entry(self.job()).range_attr(self.lv, attr);
         let upper = range.max().unwrap();
         if self.attr(attr) > upper {
             return (rng.rand() % 2).into();
         }
 
         let randomized =
-            ((growth_base.to_bits() as u16) * (rng.rand_multinomial(136, 31) as u16) >> 3) & 0x0ff0;
+            ((increment_base.to_bits() as u16) * (rng.rand_multinomial(136, 31) as u16) >> 3)
+                & 0x0ff0;
 
         let factor: AttrValue = get_personality_table(self.personality)
             .growth_factor(attr)
@@ -76,9 +75,9 @@ impl Player {
 
         for attr in Attr::into_enum_iter() {
             let before = self.attrs[attr];
-            let range = get_job_table(self.job()).range_attr_value(self.lv, attr);
+            let range = get_job_entry(self.job()).range_attr(self.lv, attr);
 
-            let mut after = before + self.growth_attr(self.lv, attr);
+            let mut after = before.saturating_add(self.growth_attr(self.lv, attr));
 
             let lower = range.min().unwrap().to_fixed();
 
@@ -101,9 +100,54 @@ impl Player {
         self.lv = 1;
         self.job = job;
 
+        self.max_hp /= 2;
+        self.max_mp /= 2;
         self.attrs
             .values_mut()
             .for_each(|x| *x = *x / AttrValue::from(2));
+    }
+
+    pub fn personality_change(&mut self, personality: Personality) {
+        self.personality = personality;
+    }
+}
+
+fn init_maxhp_or_maxmp(vit_or_int: u8) -> u16 {
+    let mut rng = rand::thread_rng();
+
+    ((vit_or_int as u32) * (500 + rng.rand_by_multiply(25) as u32) / 256) as u16
+}
+
+pub fn init_attr_of_hero(sex: Sex, personality: Personality) -> Player {
+    let job = Job::Hero;
+    let job_entry = get_job_entry(job);
+    let personality_entry = get_personality_table(personality);
+    let mut rng = rand::thread_rng();
+    let mut attrs = EnumMap::<Attr, AttrValue>::default();
+
+    for attr in Attr::into_enum_iter() {
+        let init = AttrValue::from(job_entry.initial_attr(attr, sex));
+        let factor = AttrValue::from(personality_entry.growth_factor(attr));
+        let rand = AttrValue::from(rng.rand() & 1);
+        let bonus =
+            AttrValue::from((factor).saturating_sub(1.into()) / AttrValue::from_num(0.05f64));
+
+        let v = (init + rand) * factor + bonus;
+
+        attrs[attr] = v;
+    }
+
+    let max_hp = init_maxhp_or_maxmp(attrs[Attr::Vit].to_num());
+    let max_mp = init_maxhp_or_maxmp(attrs[Attr::Int].to_num());
+
+    Player {
+        lv: 1,
+        max_hp: max_hp,
+        max_mp: max_mp,
+        attrs: attrs,
+        sex: sex,
+        personality: personality,
+        job: job,
     }
 }
 
@@ -142,13 +186,7 @@ impl Default for PlayerInit {
 
 impl PlayerInit {
     pub fn init(self) -> Player {
-        let attrs: Attrs = enum_map! {
-            Attr::Pow => self.pow.to_fixed(),
-            Attr::Spd => self.spd.to_fixed(),
-            Attr::Vit => self.vit.to_fixed(),
-            Attr::Int => self.int.to_fixed(),
-            Attr::Lck => self.lck.to_fixed(),
-        };
+        let attrs = attrs_new(self.pow, self.spd, self.vit, self.int, self.lck);
 
         Player {
             lv: self.lv,
@@ -179,11 +217,11 @@ mod tests {
         assert_eq!(player.lv, 3);
         assert_eq!(player.max_hp, 50);
         assert_eq!(player.max_mp, 0);
-        assert_eq!(player.attrs[Attr::Pow], 0u8.to_fixed::<AttrValue>());
-        assert_eq!(player.attrs[Attr::Spd], 0u8.to_fixed::<AttrValue>());
-        assert_eq!(player.attrs[Attr::Vit], 25u8.to_fixed::<AttrValue>());
-        assert_eq!(player.attrs[Attr::Int], 0u8.to_fixed::<AttrValue>());
-        assert_eq!(player.attrs[Attr::Lck], 0u8.to_fixed::<AttrValue>());
+        assert_eq!(player.attr(Attr::Pow), 0);
+        assert_eq!(player.attr(Attr::Spd), 0);
+        assert_eq!(player.attr(Attr::Vit), 25);
+        assert_eq!(player.attr(Attr::Int), 0);
+        assert_eq!(player.attr(Attr::Lck), 0);
         assert_eq!(player.sex, Sex::Man);
         assert_eq!(player.personality, Personality::Ordinary);
         assert_eq!(player.job, Job::Soldier);

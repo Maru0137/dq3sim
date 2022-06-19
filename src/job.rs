@@ -5,12 +5,23 @@ use crate::sex::Sex;
 use enum_iterator::IntoEnumIterator;
 use enum_map::{enum_map, Enum, EnumMap};
 use fixed::types::U4F4;
+use serde::{Deserialize, Serialize};
 use std::ops::RangeInclusive;
 
-pub type GrowthValueT = U4F4;
-
 /// Job kind enum
-#[derive(Clone, Copy, Debug, Display, IntoEnumIterator, Enum, EnumString, PartialEq, Eq)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Deserialize,
+    Display,
+    Enum,
+    EnumString,
+    IntoEnumIterator,
+    PartialEq,
+    Eq,
+    Serialize,
+)]
 pub enum Job {
     #[strum(serialize = "せんし", serialize = "せ")]
     Soldier,
@@ -32,25 +43,28 @@ pub enum Job {
     Hero,
 }
 
+pub type AttrIncrementValue = U4F4;
+
 #[derive(Clone, Debug, Default)]
-pub struct GrowthEntry {
+pub struct AttrIncrementEntry {
     upper_lv: u8,
-    value: GrowthValueT,
+    value: AttrIncrementValue,
 }
 
 #[derive(Debug)]
-pub struct JobTable {
+pub struct JobEntry {
     name: String,
     exps: [u32; 98],
     attr_inits: EnumMap<Attr, EnumMap<Sex, u8>>,
-    attr_growths: EnumMap<Attr, Vec<GrowthEntry>>,
+    attr_increments: EnumMap<Attr, Vec<AttrIncrementEntry>>,
 }
 
-impl JobTable {
-    pub fn growth_value(&self, lv: u8, attr: Attr) -> GrowthValueT {
+impl JobEntry {
+    pub fn attr_increment(&self, lv: u8, attr: Attr) -> AttrIncrementValue {
         assert!(lv >= 2);
+        assert!(lv <= 99);
 
-        let growths = &self.attr_growths[attr];
+        let growths = &self.attr_increments[attr];
 
         // Search growth step id.
         let mut id = 0;
@@ -64,8 +78,9 @@ impl JobTable {
         growths[id].value
     }
 
-    fn sum_growth_value(&self, lv: u8, attr: Attr) -> u8 {
+    fn sum_of_attr_increments(&self, lv: u8, attr: Attr) -> u8 {
         assert!(lv >= 1);
+        assert!(lv <= 99);
 
         if lv == 1 {
             return 0;
@@ -73,25 +88,31 @@ impl JobTable {
 
         let sum = (2..=lv)
             .fold(AttrValue::from(0), |acc, lv| {
-                acc.saturating_add(AttrValue::from(self.growth_value(lv, attr)))
+                acc.saturating_add(AttrValue::from(self.attr_increment(lv, attr)))
             })
             .to_num();
 
         sum
     }
 
-    pub fn standard_attr_value(&self, lv: u8, attr: Attr) -> u8 {
+    pub fn initial_attr(&self, attr: Attr, sex: Sex) -> u8 {
+        self.attr_inits[attr][sex]
+    }
+
+    pub fn standard_attr(&self, lv: u8, attr: Attr) -> u8 {
         assert!(lv >= 1);
+        assert!(lv <= 99);
 
         let init = self.attr_inits[attr][Sex::Man];
 
-        init + self.sum_growth_value(lv, attr)
+        init + self.sum_of_attr_increments(lv, attr)
     }
 
-    pub fn range_attr_value(&self, lv: u8, attr: Attr) -> RangeInclusive<u8> {
+    pub fn range_attr(&self, lv: u8, attr: Attr) -> RangeInclusive<u8> {
         assert!(lv >= 1);
+        assert!(lv <= 99);
 
-        let standard = self.standard_attr_value(lv, attr);
+        let standard = self.standard_attr(lv, attr);
         let upper = standard.saturating_add(15).saturating_add(lv * 2);
 
         let lower_factor = match attr {
@@ -105,22 +126,24 @@ impl JobTable {
         lower..=upper
     }
 
-    pub fn standard_intelligence_by_learning(&self, lv: u8) -> u8 {
+    pub fn standard_intelligence_for_learning(&self, lv: u8) -> u8 {
         assert!(lv >= 2);
+        assert!(lv <= 99);
 
-        self.sum_growth_value(lv - 1, Attr::Int) + 5
+        self.sum_of_attr_increments(lv - 1, Attr::Int) + 5
     }
 
     pub fn intelligence_thresh_for_learning(&self, lv: u8) -> (u8, u8) {
         assert!(lv >= 2);
+        assert!(lv <= 99);
 
-        let std = self.standard_intelligence_by_learning(lv);
+        let std = self.standard_intelligence_for_learning(lv);
 
         (std.saturating_sub(15), std.saturating_add(11))
     }
 }
 
-impl loader::FromRecord for JobTable {
+impl loader::FromRecord for JobEntry {
     fn from_record(record: &csv::StringRecord) -> Self {
         let name = record[0].parse().unwrap();
         let mut exps: [u32; 98] = [0; 98];
@@ -128,49 +151,58 @@ impl loader::FromRecord for JobTable {
             *exp = record[12 + i].parse().unwrap();
         }
 
-        let mut attr_inits = EnumMap::<Attr, EnumMap<Sex, u8>>::default();
-        let mut attr_growths = EnumMap::<Attr, Vec<GrowthEntry>>::default();
+        let attr_increment_entry_nums = [5, 5, 6, 5, 5];
 
-        let attr_growth_nums = [5, 5, 6, 5, 5];
+        let mut attr_inits = EnumMap::<Attr, EnumMap<Sex, u8>>::default();
+        let mut attr_increments = EnumMap::<Attr, Vec<AttrIncrementEntry>>::default();
 
         for (attr_i, attr) in Attr::into_enum_iter().enumerate() {
-            let growth_num_sum = attr_growth_nums[0..attr_i].iter().sum::<usize>();
-            let offset: usize = 2 * attr_i + 2 * growth_num_sum;
+            let attr_increment_entry_num_sum =
+                attr_increment_entry_nums[0..attr_i].iter().sum::<usize>();
+            let offset: usize = (2 * attr_i + 2 * attr_increment_entry_num_sum) as usize;
 
             // Parse initial status.
-            let mut inits = EnumMap::<Sex, u8>::default();
-            for (sex_i, sex) in Sex::into_enum_iter().enumerate() {
-                inits[sex] = record[110 + offset + sex_i].parse().unwrap();
-            }
+            let inits = {
+                let mut inits = EnumMap::<Sex, u8>::default();
+                for (sex_i, sex) in Sex::into_enum_iter().enumerate() {
+                    inits[sex] = record[110 + offset + sex_i].parse().unwrap();
+                }
+                inits
+            };
             attr_inits[attr] = inits;
 
             // Parse growth of status.
-            let mut growths = vec![GrowthEntry::default(); attr_growth_nums[attr_i]];
-            for (growth_i, growth) in growths.iter_mut().enumerate() {
-                growth.upper_lv = record[112 + offset + 2 * growth_i].parse().unwrap();
-                growth.value =
-                    GrowthValueT::from_bits(record[113 + offset + 2 * growth_i].parse().unwrap());
-            }
-            attr_growths[attr] = growths;
+            let increments = {
+                let mut increments =
+                    vec![AttrIncrementEntry::default(); attr_increment_entry_nums[attr_i]];
+                for (increment_i, increment) in increments.iter_mut().enumerate() {
+                    increment.upper_lv = record[112 + offset + 2 * increment_i].parse().unwrap();
+                    increment.value = AttrIncrementValue::from_bits(
+                        record[113 + offset + 2 * increment_i].parse().unwrap(),
+                    );
+                }
+                increments
+            };
+            attr_increments[attr] = increments;
         }
 
         Self {
             name,
             exps,
             attr_inits,
-            attr_growths,
+            attr_increments,
         }
     }
 }
 
 lazy_static! {
-    static ref JOB_TABLE: Vec<JobTable> = {
+    static ref JOB_TABLE: Vec<JobEntry> = {
         let data = include_str!("../assets/0xc4179e_jobs.csv");
         loader::from_csv(data)
     };
 }
 
-pub fn get_job_table(job: Job) -> &'static JobTable {
+pub fn get_job_entry(job: Job) -> &'static JobEntry {
     &JOB_TABLE[job as usize]
 }
 
@@ -179,8 +211,41 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_growth_value() {
-        assert_eq!(get_job_table(Job::Soldier).growth_value(9, Attr::Vit), 5.5);
-        assert_eq!(get_job_table(Job::Sage).growth_value(2, Attr::Int), 0.5);
+    fn test_initial_attr() {
+        assert_eq!(
+            get_job_entry(Job::Soldier).initial_attr(Attr::Spd, Sex::Man),
+            2
+        );
+        assert_eq!(
+            get_job_entry(Job::Soldier).initial_attr(Attr::Spd, Sex::Women),
+            3
+        );
+        assert_eq!(
+            get_job_entry(Job::Soldier).initial_attr(Attr::Vit, Sex::Man),
+            9
+        );
+        assert_eq!(
+            get_job_entry(Job::Soldier).initial_attr(Attr::Vit, Sex::Man),
+            9
+        );
+        assert_eq!(
+            get_job_entry(Job::Thief).initial_attr(Attr::Vit, Sex::Women),
+            5
+        );
+        assert_eq!(
+            get_job_entry(Job::Wizard).initial_attr(Attr::Vit, Sex::Women),
+            4
+        );
+    }
+
+    #[test]
+    fn test_attr_increment() {
+        assert_eq!(get_job_entry(Job::Soldier).attr_increment(8, Attr::Vit), 2);
+        assert_eq!(
+            get_job_entry(Job::Soldier).attr_increment(9, Attr::Vit),
+            5.5
+        );
+        assert_eq!(get_job_entry(Job::Soldier).attr_increment(99, Attr::Vit), 1);
+        assert_eq!(get_job_entry(Job::Sage).attr_increment(2, Attr::Int), 0.5);
     }
 }

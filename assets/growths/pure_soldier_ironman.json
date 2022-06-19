@@ -1,0 +1,13 @@
+{
+    "init": {
+        "job": "Soldier",
+        "sex": "Man",
+        "personality": "Ironman",
+        "vit": 19
+    },
+    "configs": [
+        {
+            "lv": 23
+        }
+    ]
+}

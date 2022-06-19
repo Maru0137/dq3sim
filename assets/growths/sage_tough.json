@@ -1,0 +1,42 @@
+{
+    "init": {
+        "job": "Thief",
+        "sex": "Women",
+        "personality": "Tough",
+        "vit": 16
+    },
+    "configs": [
+        {
+            "lv": 3
+        },
+        {
+            "lv": 6,
+            "personality": "Valiant"
+        },
+        {
+            "lv": 9,
+            "personality": "Tough"
+        },
+        {
+            "lv": 10,
+            "personality": "Valiant"
+        },
+        {
+            "lv": 11,
+            "personality": "Tough"
+        },
+        {
+            "lv": 20,
+            "personality": "Valiant"
+        },
+        {
+            "lv": 14,
+            "job": "Sage",
+            "personality": "Solitary"
+        },
+        {
+            "lv": 22,
+            "personality": "Tough"
+        }
+    ]
+}

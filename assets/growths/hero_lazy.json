@@ -1,0 +1,33 @@
+{
+    "init": {
+        "job": "Hero",
+        "sex": "Man",
+        "personality": "Lazy",
+        "vit": 14
+    },
+    "configs": [
+        {
+            "lv": 4
+        },
+        {
+            "lv": 7,
+            "personality": "Valiant"
+        },
+        {
+            "lv": 8,
+            "personality": "Lazy"
+        },
+        {
+            "lv": 9,
+            "personality": "Valiant"
+        },
+        {
+            "lv": 19,
+            "personality": "Lazy"
+        },
+        {
+            "lv": 26,
+            "personality": "Valiant"
+        }
+    ]
+}
