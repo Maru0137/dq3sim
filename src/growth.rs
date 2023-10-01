@@ -1,7 +1,7 @@
+use crate::job::Job;
 use crate::personality::Personality;
 use crate::player::{Player, PlayerInit};
 use crate::sex::Sex;
-use crate::{job::Job, personality};
 
 use serde::{Deserialize, Serialize};
 
@@ -250,7 +250,7 @@ mod tests {
 
         let config: GrowthConfig = serde_json::from_str(config).unwrap();
 
-        let mut player = PlayerGrowther::from_config(&config);
+        let player = PlayerGrowther::from_config(&config);
         for p in player {
             println!("{:?}", p);
         }

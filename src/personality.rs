@@ -2,7 +2,7 @@ use crate::attr::Attr;
 use crate::loader;
 
 use enum_iterator::IntoEnumIterator;
-use enum_map::{enum_map, Enum, EnumMap};
+use enum_map::{Enum, EnumMap};
 use fixed::types::U1F7;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;

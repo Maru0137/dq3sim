@@ -1,11 +1,11 @@
 use crate::attr::{attrs_new, Attr, AttrValue, Attrs};
 use crate::job::{get_job_entry, Job};
-use crate::personality::{self, get_personality_table, GrowthFactor, Personality};
+use crate::personality::{get_personality_table, Personality};
 use crate::rand;
 use crate::sex::Sex;
 
 use enum_iterator::IntoEnumIterator;
-use enum_map::{enum_map, Enum, EnumMap};
+use enum_map::EnumMap;
 use fixed::traits::ToFixed;
 
 #[derive(Debug, Clone)]

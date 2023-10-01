@@ -4,7 +4,6 @@ use std::borrow::Borrow;
 use std::cell::UnsafeCell;
 use std::fmt;
 use std::rc::Rc;
-use std::thread::{self, Thread};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]

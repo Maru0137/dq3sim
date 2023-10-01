@@ -3,7 +3,7 @@ use crate::loader;
 use crate::sex::Sex;
 
 use enum_iterator::IntoEnumIterator;
-use enum_map::{enum_map, Enum, EnumMap};
+use enum_map::{Enum, EnumMap};
 use fixed::types::U4F4;
 use serde::{Deserialize, Serialize};
 use std::ops::RangeInclusive;
